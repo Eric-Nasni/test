@@ -121,7 +121,7 @@
     <div class="topbar"><div class="pill">GHOST CAM</div></div>
 
     <div class="viewport">
-      <video id="video" playsinline="" muted=""></video>
+      <video id="video" playsinline autoplay muted></video>
       <div class="start-overlay" id="startOverlay">
         <button class="primary" id="startBtn">START CAMERA</button>
       </div>
@@ -167,6 +167,12 @@
 <script>
 (function(){
   const video=document.getElementById('video');
+
+// REQUIRED FOR ANDROID CAMERA
+video.setAttribute('playsinline','');
+video.setAttribute('autoplay','');
+video.muted = true;
+  
   const overlayWrap=document.getElementById('overlayWrap');
   const overlay=document.getElementById('overlay');
   const captureCanvas=document.getElementById('capture');
@@ -278,51 +284,67 @@
     overlay.style.opacity = currentOpacity;
   });
 
-  async function captureFrame(){
-    if(!video.videoWidth){showToast('CAMERA NOT READY');return;}
-    const w=video.videoWidth,h=video.videoHeight;
-    captureCanvas.width=w;captureCanvas.height=h;
-    const ctx=captureCanvas.getContext('2d');
-    ctx.drawImage(video,0,0,w,h);
+async function captureFrame(){
+  if(!video.videoWidth){showToast('CAMERA NOT READY');return;}
 
-    const img=overlay;
-    if(!img.complete)await new Promise(r=>img.onload=r);
+  const w=video.videoWidth, h=video.videoHeight;
+  captureCanvas.width=w; captureCanvas.height=h;
+  const ctx=captureCanvas.getContext('2d');
 
-    // Map center/size using our tracked transform (robust with rotation)
-    const vidRect=video.getBoundingClientRect();
-    const scaleX=w/vidRect.width, scaleY=h/vidRect.height;
+  // Draw live camera feed
+  ctx.drawImage(video,0,0,w,h);
 
-    const centerX_view = vidRect.left + vidRect.width/2 + overlayWrap._dx;
-    const centerY_view = vidRect.top  + vidRect.height/2 + overlayWrap._dy;
+  // Ensure overlay is loaded
+  const img=overlay;
+  if(!img.complete) await new Promise(r => img.onload = r);
 
-    const baseW = overlay.clientWidth;   // layout width before CSS transforms
-    const baseH = overlay.clientHeight;
-    const drawW = (baseW * overlayWrap._scale) * scaleX;
-    const drawH = (baseH * overlayWrap._scale) * scaleY;
+  // Android-safe element metrics
+  const ow = overlay.offsetWidth;
+  const oh = overlay.offsetHeight;
 
-    const cx = (centerX_view - vidRect.left) * scaleX;
-    const cy = (centerY_view - vidRect.top ) * scaleY;
+  // Normalize scale factors
+  const scaleX = w / video.offsetWidth;
+  const scaleY = h / video.offsetHeight;
 
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(overlayWrap._rot); // radians
-    ctx.globalCompositeOperation = currentBlend;
-    ctx.globalAlpha = currentOpacity;    // respect slider
-    ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
-    ctx.restore();
+  const drawW = ow * overlayWrap._scale * scaleX;
+  const drawH = oh * overlayWrap._scale * scaleY;
 
-    const blob=await new Promise(r=>captureCanvas.toBlob(r,'image/jpeg',0.92));
-    const file=new File([blob],`ghostcam-${Date.now()}.jpg`,{type:'image/jpeg'});
-    if(navigator.canShare&&navigator.canShare({files:[file]}))
+  // Compute center in video-space
+  const cx = (video.offsetWidth / 2 + overlayWrap._dx) * scaleX;
+  const cy = (video.offsetHeight / 2 + overlayWrap._dy) * scaleY;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(overlayWrap._rot);
+  ctx.globalCompositeOperation = currentBlend;
+  ctx.globalAlpha = currentOpacity;
+  ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
+  ctx.restore();
+
+  // Save output
+  const blob = await new Promise(r => captureCanvas.toBlob(r,'image/jpeg',0.92));
+  const file = new File([blob],`ghostcam-${Date.now()}.jpg`,{type:'image/jpeg'});
+
+  // ANDROID FIXED SHARE HANDLING
+  let shared = false;
+  try {
+    if(navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({files:[file],title:'GHOST CAM'});
-    else{
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=file.name;
-      a.click();
+      shared = true;
     }
-    showToast('SAVED/SHARED');
+  } catch(e){}
+
+  // Force download if share not supported
+  if(!shared){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=file.name;
+    a.click();
   }
+
+  showToast('SAVED');
+}
+
 
   /* CHANGE 2 (logic already in your good code): about:blank */
   function burn(){
