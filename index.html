@@ -337,7 +337,7 @@ async function captureFrame(){
   // Force download if share not supported
   if(!shared){
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
+    a.URL.createObjectURL(blob);
     a.download=file.name;
     a.click();
   }
