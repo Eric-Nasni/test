@@ -164,194 +164,305 @@
 
   <div class="toast" id="toast"></div>
 
-<script>
-(function(){
-  const video=document.getElementById('video');
-  const overlayWrap=document.getElementById('overlayWrap');
-  const overlay=document.getElementById('overlay');
-  const captureCanvas=document.getElementById('capture');
-  const startOverlay=document.getElementById('startOverlay');
-  const startBtn=document.getElementById('startBtn');
-  const shutterBtn=document.getElementById('shutterBtn');
-  const burnBtn=document.getElementById('burnBtn');
-  const ghostBtn=document.getElementById('ghostBtn');
-  const chooser=document.getElementById('chooser');
-  const chooserClose=document.getElementById('chooserClose');
-  const toast=document.getElementById('toast');
-  const opacitySlider=document.getElementById('opacitySlider');
+  <script>
+(function() {
 
-  let stream, currentBlend="lighten";
-  let currentOpacity = 1; // NEW: live overlay opacity (0..1)
+  /* --------------------------------------------
+     ELEMENT REFERENCES
+  ---------------------------------------------*/
+  const video = document.getElementById("video");
+  const overlayWrap = document.getElementById("overlayWrap");
+  const overlay = document.getElementById("overlay");
+  const captureCanvas = document.getElementById("capture");
+  const startOverlay = document.getElementById("startOverlay");
+  const startBtn = document.getElementById("startBtn");
+  const shutterBtn = document.getElementById("shutterBtn");
+  const burnBtn = document.getElementById("burnBtn");
+  const ghostBtn = document.getElementById("ghostBtn");
+  const chooser = document.getElementById("chooser");
+  const chooserClose = document.getElementById("chooserClose");
+  const toast = document.getElementById("toast");
+  const opacitySlider = document.getElementById("opacitySlider");
 
-  function showToast(msg){
-    toast.textContent=msg; toast.classList.add('show');
+  let stream = null;
+  let currentBlend = "lighten";
+  let currentOpacity = 1;
+
+  /* --------------------------------------------
+     TOAST MESSAGE
+  ---------------------------------------------*/
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
     clearTimeout(showToast._t);
-    showToast._t=setTimeout(()=>toast.classList.remove('show'),1500);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 1500);
   }
 
-  ['ghostwoman.png','ghostgirl.png','ghostman.png','ghostscream.png','ghosthand.png','ghostshadow.png'].forEach(src=>{
-    const im=new Image(); im.src=src;
+  /* --------------------------------------------
+     PRELOAD GHOST IMAGES
+  ---------------------------------------------*/
+  [
+    "ghostwoman.png",
+    "ghostgirl.png",
+    "ghostman.png",
+    "ghostscream.png",
+    "ghosthand.png",
+    "ghostshadow.png"
+  ].forEach(src => {
+    const im = new Image();
+    im.src = src;
   });
 
-  async function startCamera(){
-    try{
-      const options=[{audio:false,video:{facingMode:'environment'}},{audio:false,video:true}];
-      let got;
-      for(const c of options){try{got=await navigator.mediaDevices.getUserMedia(c);break;}catch(e){}}
-      if(!got) throw new Error('No camera available');
-      stream=got;
-      video.srcObject=got;
+  /* --------------------------------------------
+     START CAMERA
+  ---------------------------------------------*/
+  async function startCamera() {
+    try {
+      let got = null;
+
+      // Try environment camera first
+      const attempts = [
+        { video: { facingMode: "environment" }, audio: false },
+        { video: true, audio: false }
+      ];
+
+      for (const opt of attempts) {
+        try {
+          got = await navigator.mediaDevices.getUserMedia(opt);
+          break;
+        } catch (e) {}
+      }
+
+      if (!got) throw new Error("No camera available");
+
+      stream = got;
+      video.srcObject = got;
       await video.play();
-      overlayWrap.style.display='block';
-      startOverlay.style.display='none';
-      showToast('CAMERA READY');
-    }catch{
-      alert('Camera access denied or unavailable. Use HTTPS.');
+
+      startOverlay.style.display = "none";
+      overlayWrap.style.display = "block";
+
+      showToast("CAMERA READY");
+
+    } catch (err) {
+      alert("Camera access denied or unavailable.\nMust be HTTPS.");
     }
   }
 
-  // Overlay transform state (now includes rotation)
-  overlayWrap._dx=0; overlayWrap._dy=0; overlayWrap._scale=1; overlayWrap._rot=0; // radians
+  /* --------------------------------------------
+     OVERLAY TRANSFORM STATE
+  ---------------------------------------------*/
+  overlayWrap._dx = 0;
+  overlayWrap._dy = 0;
+  overlayWrap._scale = 1;
+  overlayWrap._rot = 0;     // radians
+  overlayWrap._prev = null;
 
-  function applyOverlayTransform(){
-    const deg = overlayWrap._rot * 180/Math.PI;
+  function applyOverlayTransform() {
+    const deg = overlayWrap._rot * 180 / Math.PI;
     overlayWrap.style.transform =
       `translate(-50%, -50%) translate(${overlayWrap._dx}px, ${overlayWrap._dy}px) rotate(${deg}deg) scale(${overlayWrap._scale})`;
   }
 
-  // Drag + pinch + rotate
-  (function(){
-    const active=new Map(); let baseline=null;
-    const getMid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
-    const dist=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
-    const angle=(a,b)=>Math.atan2(b.y-a.y, b.x-a.x);
+  /* --------------------------------------------
+     DRAG / PINCH / ROTATE HANDLING
+  ---------------------------------------------*/
+  (function() {
+    const active = new Map();
+    let baseline = null;
 
-    overlayWrap.addEventListener('pointerdown',e=>{
+    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+    const ang = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+
+    overlayWrap.addEventListener("pointerdown", e => {
       overlayWrap.setPointerCapture?.(e.pointerId);
-      active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      overlayWrap._prev = { x: e.clientX, y: e.clientY };
       e.preventDefault();
-    },{passive:false});
+    }, { passive: false });
 
-    overlayWrap.addEventListener('pointermove',e=>{
-      if(!active.has(e.pointerId))return;
-      active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(active.size===1){
-        const only=[...active.values()][0], prev=overlayWrap._prev||only;
-        overlayWrap._dx+=(only.x-prev.x);
-        overlayWrap._dy+=(only.y-prev.y);
-        overlayWrap._prev=only;
+    overlayWrap.addEventListener("pointermove", e => {
+      if (!active.has(e.pointerId)) return;
+
+      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (active.size === 1) {
+        // Dragging
+        const p = [...active.values()][0];
+        const prev = overlayWrap._prev;
+        overlayWrap._dx += (p.x - prev.x);
+        overlayWrap._dy += (p.y - prev.y);
+        overlayWrap._prev = p;
+
         applyOverlayTransform();
-      } else if(active.size===2){
-        const [p1,p2]=[...active.values()];
-        if(!baseline){
-          baseline={
-            dist0:dist(p1,p2),
-            ang0:angle(p1,p2),
-            mid0:getMid(p1,p2),
-            dx0:overlayWrap._dx, dy0:overlayWrap._dy,
-            scale0:overlayWrap._scale, rot0:overlayWrap._rot
+      }
+
+      else if (active.size === 2) {
+        // Pinch + rotate
+        const [p1, p2] = [...active.values()];
+
+        if (!baseline) {
+          baseline = {
+            dist0: dist(p1, p2),
+            ang0: ang(p1, p2),
+            mid0: mid(p1, p2),
+            dx0: overlayWrap._dx,
+            dy0: overlayWrap._dy,
+            scale0: overlayWrap._scale,
+            rot0: overlayWrap._rot
           };
           return;
         }
-        const mid=getMid(p1,p2), d=dist(p1,p2), ang=angle(p1,p2);
-        const factor=(baseline.dist0===0)?1:d/baseline.dist0;
-        overlayWrap._scale=Math.max(0.3, Math.min(3, baseline.scale0*factor));
-        overlayWrap._dx=baseline.dx0+(mid.x-baseline.mid0.x);
-        overlayWrap._dy=baseline.dy0+(mid.y-baseline.mid0.y);
-        overlayWrap._rot=baseline.rot0+(ang-baseline.ang0); // NEW: rotation
+
+        const m = mid(p1, p2);
+        const d = dist(p1, p2);
+        const a = ang(p1, p2);
+
+        const factor = d / baseline.dist0;
+        overlayWrap._scale = Math.max(0.3, Math.min(3, baseline.scale0 * factor));
+        overlayWrap._dx = baseline.dx0 + (m.x - baseline.mid0.x);
+        overlayWrap._dy = baseline.dy0 + (m.y - baseline.mid0.y);
+        overlayWrap._rot = baseline.rot0 + (a - baseline.ang0);
+
         applyOverlayTransform();
       }
-      e.preventDefault();
-    },{passive:false});
 
-    overlayWrap.addEventListener('pointerup',e=>{
+      e.preventDefault();
+    }, { passive: false });
+
+    overlayWrap.addEventListener("pointerup", e => {
       active.delete(e.pointerId);
-      if(active.size<2) baseline=null;
+      if (active.size < 2) baseline = null;
       overlayWrap.releasePointerCapture?.(e.pointerId);
     });
   })();
 
-  // Opacity slider -> live view + capture
-  overlay.style.opacity = currentOpacity;
-  opacitySlider.addEventListener('input', ()=>{
-    currentOpacity = Math.max(0, Math.min(1, opacitySlider.value/100));
+  /* --------------------------------------------
+     OPACITY SLIDER
+  ---------------------------------------------*/
+  opacitySlider.addEventListener("input", () => {
+    currentOpacity = Math.max(0, Math.min(1, opacitySlider.value / 100));
     overlay.style.opacity = currentOpacity;
   });
 
-  async function captureFrame(){
-    if(!video.videoWidth){showToast('CAMERA NOT READY');return;}
-    const w=video.videoWidth,h=video.videoHeight;
-    captureCanvas.width=w;captureCanvas.height=h;
-    const ctx=captureCanvas.getContext('2d');
-    ctx.drawImage(video,0,0,w,h);
+  /* --------------------------------------------
+     CAPTURE FRAME
+     Fully cross-platform: iPhone + Android
+  ---------------------------------------------*/
+  async function captureFrame() {
+    if (!video.videoWidth) {
+      showToast("CAMERA NOT READY");
+      return;
+    }
 
-    const img=overlay;
-    if(!img.complete)await new Promise(r=>img.onload=r);
+    const w = video.videoWidth;
+    const h = video.videoHeight;
 
-    // Map center/size using our tracked transform (robust with rotation)
-    const vidRect=video.getBoundingClientRect();
-    const scaleX=w/vidRect.width, scaleY=h/vidRect.height;
+    captureCanvas.width = w;
+    captureCanvas.height = h;
+    const ctx = captureCanvas.getContext("2d");
 
-    const centerX_view = vidRect.left + vidRect.width/2 + overlayWrap._dx;
-    const centerY_view = vidRect.top  + vidRect.height/2 + overlayWrap._dy;
+    // Draw camera
+    ctx.drawImage(video, 0, 0, w, h);
 
-    const baseW = overlay.clientWidth;   // layout width before CSS transforms
+    // Wait for overlay to load
+    if (!overlay.complete) {
+      await new Promise(r => overlay.onload = r);
+    }
+
+    // Translate screen coords -> canvas coords
+    const rect = video.getBoundingClientRect();
+    const scaleX = w / rect.width;
+    const scaleY = h / rect.height;
+
+    const cx_view = rect.left + rect.width / 2 + overlayWrap._dx;
+    const cy_view = rect.top + rect.height / 2 + overlayWrap._dy;
+
+    const baseW = overlay.clientWidth;
     const baseH = overlay.clientHeight;
-    const drawW = (baseW * overlayWrap._scale) * scaleX;
-    const drawH = (baseH * overlayWrap._scale) * scaleY;
+    const drawW = baseW * overlayWrap._scale * scaleX;
+    const drawH = baseH * overlayWrap._scale * scaleY;
 
-    const cx = (centerX_view - vidRect.left) * scaleX;
-    const cy = (centerY_view - vidRect.top ) * scaleY;
+    const cx = (cx_view - rect.left) * scaleX;
+    const cy = (cy_view - rect.top) * scaleY;
 
+    // Draw overlay
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(overlayWrap._rot); // radians
+    ctx.rotate(overlayWrap._rot);
+    ctx.globalAlpha = currentOpacity;
     ctx.globalCompositeOperation = currentBlend;
-    ctx.globalAlpha = currentOpacity;    // respect slider
-    ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
+    ctx.drawImage(overlay, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
 
-    const blob=await new Promise(r=>captureCanvas.toBlob(r,'image/jpeg',0.92));
-    const file=new File([blob],`ghostcam-${Date.now()}.jpg`,{type:'image/jpeg'});
-    if(navigator.canShare&&navigator.canShare({files:[file]}))
-      await navigator.share({files:[file],title:'UNTITLED'});
-    else{
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=file.name;
-      a.click();
+    // Blob output
+    const blob = await new Promise(r => captureCanvas.toBlob(r, "image/jpeg", 0.92));
+    const file = new File([blob], `ghostcam-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+    // Web Share API (iPhone + Android)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "Ghost Cam" });
+        showToast("SHARED");
+        return;
+      } catch (e) {}
     }
-    showToast('SAVED/SHARED');
+
+    // Forced download fallback (Android-compatible)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+
+    // Android needs link in DOM
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+
+    showToast("DOWNLOADED");
   }
 
-  /* CHANGE 2 (logic already in your good code): about:blank */
-  function burn(){
-    try{if(stream)stream.getTracks().forEach(t=>t.stop());}catch{}
-    try{history.replaceState(null,'',location.origin+'/');}catch{}
-    try{document.body.innerHTML='';}catch{}
-    try{location.replace('about:blank');}catch{}
+  /* --------------------------------------------
+     "BURN" – Close + Unload Page
+  ---------------------------------------------*/
+  function burn() {
+    try { stream?.getTracks().forEach(t => t.stop()); } catch {}
+    document.body.innerHTML = "";
+    location.replace("about:blank");
   }
 
-  function openChooser(){chooser.style.display='flex';}
-  function closeChooser(){chooser.style.display='none';}
+  /* --------------------------------------------
+     GHOST CHOOSER
+  ---------------------------------------------*/
+  function openChooser() { chooser.style.display = "flex"; }
+  function closeChooser() { chooser.style.display = "none"; }
 
-  ghostBtn.addEventListener('click',openChooser);
-  chooserClose.addEventListener('click',closeChooser);
-  chooser.addEventListener('click',e=>{if(e.target===chooser)closeChooser();});
+  ghostBtn.addEventListener("click", openChooser);
+  chooserClose.addEventListener("click", closeChooser);
+  chooser.addEventListener("click", e => {
+    if (e.target === chooser) closeChooser();
+  });
 
-  chooser.querySelectorAll('[data-src]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const src=btn.getAttribute('data-src');
-      overlay.src=src;
-      currentBlend = src.includes('ghostshadow') ? 'multiply' : 'lighten';
+  chooser.querySelectorAll("[data-src]").forEach(el => {
+    el.addEventListener("click", () => {
+      const src = el.getAttribute("data-src");
+      overlay.src = src;
+      currentBlend = src.includes("ghostshadow") ? "multiply" : "lighten";
       closeChooser();
-      showToast(`GHOST SET (${currentBlend})`);
+      showToast("GHOST SET");
     });
   });
 
-  startBtn.addEventListener('click',startCamera);
-  shutterBtn.addEventListener('click',captureFrame);
-  burnBtn.addEventListener('click',burn);
+  /* --------------------------------------------
+     BUTTON EVENTS
+  ---------------------------------------------*/
+  startBtn.addEventListener("click", startCamera);
+  shutterBtn.addEventListener("click", captureFrame);
+  burnBtn.addEventListener("click", burn);
+
 })();
 </script>
 
