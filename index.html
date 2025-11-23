@@ -284,6 +284,7 @@ video.muted = true;
     overlay.style.opacity = currentOpacity;
   });
 
+/*
 async function captureFrame(){
   if(!video.videoWidth){showToast('CAMERA NOT READY');return;}
 
@@ -344,6 +345,90 @@ async function captureFrame(){
 
   showToast('SAVED');
 }
+*/
+
+  async function captureFrame() {
+  if (!video.videoWidth) {
+    showToast('CAMERA NOT READY');
+    return;
+  }
+
+  const w = video.videoWidth, h = video.videoHeight;
+  captureCanvas.width = w;
+  captureCanvas.height = h;
+
+  const ctx = captureCanvas.getContext('2d');
+
+  // Draw camera frame
+  ctx.drawImage(video, 0, 0, w, h);
+
+  // Wait for overlay image
+  const img = overlay;
+  if (!img.complete) {
+    await new Promise(r => img.onload = r);
+  }
+
+  // Convert screen transform to canvas transform
+  const vidRect = video.getBoundingClientRect();
+  const scaleX = w / vidRect.width;
+  const scaleY = h / vidRect.height;
+
+  const cx_view = vidRect.left + vidRect.width / 2 + overlayWrap._dx;
+  const cy_view = vidRect.top + vidRect.height / 2 + overlayWrap._dy;
+
+  const baseW = overlay.clientWidth;
+  const baseH = overlay.clientHeight;
+  const drawW = (baseW * overlayWrap._scale) * scaleX;
+  const drawH = (baseH * overlayWrap._scale) * scaleY;
+
+  const cx = (cx_view - vidRect.left) * scaleX;
+  const cy = (cy_view - vidRect.top) * scaleY;
+
+  // Draw overlay
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(overlayWrap._rot);
+  ctx.globalCompositeOperation = currentBlend;
+  ctx.globalAlpha = currentOpacity;
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+
+  // Convert canvas to Blob
+  const blob = await new Promise(r => captureCanvas.toBlob(r, 'image/jpeg', 0.92));
+
+  // Create file
+  const file = new File([blob], `ghostcam-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+  // Try Web Share (supported on iPhone & Android)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'Ghost Cam Picture'
+      });
+      showToast('SHARED');
+      return;
+    } catch (err) {
+      console.warn("Share failed, falling back to download:", err);
+    }
+  }
+
+  // FALLBACK: forced download (Android fix)
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+
+  // Required for Android
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+
+  showToast('DOWNLOADED');
+}
+
 
 
   /* CHANGE 2 (logic already in your good code): about:blank */
