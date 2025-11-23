@@ -314,7 +314,7 @@
     const blob=await new Promise(r=>captureCanvas.toBlob(r,'image/jpeg',0.92));
     const file=new File([blob],`ghostcam-${Date.now()}.jpg`,{type:'image/jpeg'});
     if(navigator.canShare&&navigator.canShare({files:[file]}))
-      await navigator.share({files:[file],title:'GHOST CAM'});
+      await navigator.share({files:[file],title:'UNTITLED'});
     else{
       const a=document.createElement('a');
       a.href=URL.createObjectURL(blob);
