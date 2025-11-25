@@ -164,8 +164,9 @@
 
   <div class="toast" id="toast"></div>
 
-  <script>
-(function() {
+
+<script>
+(function () {
 
   /* --------------------------------------------
      ELEMENT REFERENCES
@@ -220,7 +221,6 @@
     try {
       let got = null;
 
-      // Try environment camera first
       const attempts = [
         { video: { facingMode: "environment" }, audio: false },
         { video: true, audio: false }
@@ -230,10 +230,10 @@
         try {
           got = await navigator.mediaDevices.getUserMedia(opt);
           break;
-        } catch (e) {}
+        } catch { }
       }
 
-      if (!got) throw new Error("No camera available");
+      if (!got) throw new Error("No camera");
 
       stream = got;
       video.srcObject = got;
@@ -244,7 +244,7 @@
 
       showToast("CAMERA READY");
 
-    } catch (err) {
+    } catch {
       alert("Camera access denied or unavailable.\nMust be HTTPS.");
     }
   }
@@ -255,7 +255,7 @@
   overlayWrap._dx = 0;
   overlayWrap._dy = 0;
   overlayWrap._scale = 1;
-  overlayWrap._rot = 0;     // radians
+  overlayWrap._rot = 0;
   overlayWrap._prev = null;
 
   function applyOverlayTransform() {
@@ -265,9 +265,9 @@
   }
 
   /* --------------------------------------------
-     DRAG / PINCH / ROTATE HANDLING
+     DRAG / PINCH / ROTATE
   ---------------------------------------------*/
-  (function() {
+  (function () {
     const active = new Map();
     let baseline = null;
 
@@ -284,24 +284,17 @@
 
     overlayWrap.addEventListener("pointermove", e => {
       if (!active.has(e.pointerId)) return;
-
       active.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       if (active.size === 1) {
-        // Dragging
         const p = [...active.values()][0];
         const prev = overlayWrap._prev;
         overlayWrap._dx += (p.x - prev.x);
         overlayWrap._dy += (p.y - prev.y);
         overlayWrap._prev = p;
-
         applyOverlayTransform();
-      }
-
-      else if (active.size === 2) {
-        // Pinch + rotate
+      } else if (active.size === 2) {
         const [p1, p2] = [...active.values()];
-
         if (!baseline) {
           baseline = {
             dist0: dist(p1, p2),
@@ -314,7 +307,6 @@
           };
           return;
         }
-
         const m = mid(p1, p2);
         const d = dist(p1, p2);
         const a = ang(p1, p2);
@@ -327,7 +319,6 @@
 
         applyOverlayTransform();
       }
-
       e.preventDefault();
     }, { passive: false });
 
@@ -347,8 +338,7 @@
   });
 
   /* --------------------------------------------
-     CAPTURE FRAME
-     Fully cross-platform: iPhone + Android
+     CAPTURE FRAME (ANDROID + iOS SAFE VERSION)
   ---------------------------------------------*/
   async function captureFrame() {
     if (!video.videoWidth) {
@@ -363,15 +353,12 @@
     captureCanvas.height = h;
     const ctx = captureCanvas.getContext("2d");
 
-    // Draw camera
     ctx.drawImage(video, 0, 0, w, h);
 
-    // Wait for overlay to load
     if (!overlay.complete) {
       await new Promise(r => overlay.onload = r);
     }
 
-    // Translate screen coords -> canvas coords
     const rect = video.getBoundingClientRect();
     const scaleX = w / rect.width;
     const scaleY = h / rect.height;
@@ -387,7 +374,6 @@
     const cx = (cx_view - rect.left) * scaleX;
     const cy = (cy_view - rect.top) * scaleY;
 
-    // Draw overlay
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(overlayWrap._rot);
@@ -396,46 +382,61 @@
     ctx.drawImage(overlay, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
 
-    // Blob output
+    // EXPORT BLOB
     const blob = await new Promise(r => captureCanvas.toBlob(r, "image/jpeg", 0.92));
-    const file = new File([blob], `ghostcam-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const fileName = `ghostcam-${Date.now()}.jpg`;
 
-    // Web Share API (iPhone + Android)
+    // TRY WEB SHARE (iPhone + Android)
+    const file = new File([blob], fileName, { type: "image/jpeg" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Ghost Cam" });
         showToast("SHARED");
         return;
-      } catch (e) {}
+      } catch { }
     }
 
-    // Forced download fallback (Android-compatible)
+    /* --------------------------------------------
+       ANDROID DOWNLOAD FIX 
+       (The important part)
+    ---------------------------------------------*/
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
-    a.download = file.name;
+    a.download = fileName;
+    a.target = "_blank";                 // ← Required for Android Chrome
+    a.rel = "noopener";                  // ← Prevents blocking
+    a.style.display = "none";
 
-    // Android needs link in DOM
     document.body.appendChild(a);
-    a.click();
-    a.remove();
 
-    URL.revokeObjectURL(url);
+    // Required small delay for Android
+    setTimeout(() => {
+      a.click();
+
+      // Remove after click
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 500);
+
+    }, 50);
 
     showToast("DOWNLOADED");
   }
 
   /* --------------------------------------------
-     "BURN" – Close + Unload Page
+     BURN (close)
   ---------------------------------------------*/
   function burn() {
-    try { stream?.getTracks().forEach(t => t.stop()); } catch {}
+    try { stream?.getTracks().forEach(t => t.stop()); } catch { }
     document.body.innerHTML = "";
     location.replace("about:blank");
   }
 
   /* --------------------------------------------
-     GHOST CHOOSER
+     GHOST SELECTOR
   ---------------------------------------------*/
   function openChooser() { chooser.style.display = "flex"; }
   function closeChooser() { chooser.style.display = "none"; }
@@ -465,6 +466,7 @@
 
 })();
 </script>
+
 
 
 <div id="give-freely-root-ejkiikneibegknkgimmihdpcbcedgmpo" class="give-freely-root" data-extension-id="ejkiikneibegknkgimmihdpcbcedgmpo" data-extension-name="Volume Booster" style="display: block;"><template shadowrootmode="open"><style>
