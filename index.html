@@ -1,119 +1,49 @@
-<!DOCTYPE html>
-<!-- saved from url=(0017)https://mhgc.net/ -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>untitled</title>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <--link href="images/css2" rel="stylesheet"-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Ghost Cam</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
 
+  <!-- Try a .css file first, then fallback to bare 'css2' if that's your actual filename -->
+  <link rel="stylesheet" href="images/css2.css" onerror="this.onerror=null; this.href='images/css2'">
+  <!-- Inline core CSS (keeps page functional even if external stylesheet fails) -->
   <style>
-    :root {
-      --safe-area-inset-top: env(safe-area-inset-top);
-      --safe-area-inset-bottom: env(safe-area-inset-bottom);
-      --ui: rgba(0,0,0,.55);
-      --ui-strong: rgba(0,0,0,.8);
-      --text: #fff;
-      --panel: rgba(10,10,10,.92);
-      --accent: #fff;
-    }
-    html, body { height:100%; background:#000; color:var(--text); margin:0; overflow:hidden; text-transform:uppercase; }
-    body { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
-    .app { position:fixed; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
-
-    .topbar {
-      display:flex; align-items:center; justify-content:center;
-      padding: calc(var(--safe-area-inset-top) + 10px) 14px 8px;
-      background:linear-gradient(#0008,#0000); z-index:10;
-    }
-    .pill {
-      background:var(--ui); border-radius:999px; padding:10px 16px; font-size:10px;
-      font-family:'Press Start 2P', monospace; letter-spacing:2px;
-    }
-
-    .viewport { position:relative; overflow:hidden; border-radius:28px; margin:0 12px; background:#000; box-shadow:0 0 0 2px #111 inset; }
-    .viewport::before { content:""; display:block; padding-top:125%; }
-    video, canvas.capture { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-
-    .start-overlay {
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      background: radial-gradient(transparent 60%, rgba(0,0,0,0.5));
-      z-index:5;
-    }
-    .primary {
-      background:#fff; color:#000; border-radius:14px; padding:14px 18px; border:none;
-      font-family:'Press Start 2P', monospace; letter-spacing:1px; font-size:12px;
-    }
-
-    .overlay-wrap { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(1); touch-action:none; pointer-events:auto; display:none; }
-    .overlay { width:60vw; max-width:520px; opacity:1; pointer-events:auto; user-select:none; -webkit-user-drag:none; }
-
-    .bottombar { display:flex; flex-direction:column; gap:10px; padding:10px 16px calc(var(--safe-area-inset-bottom) + 16px); background:linear-gradient(#0000,#0009); }
-    .controls { display:flex; align-items:center; justify-content:space-between; }
-
-    .btn, .danger, .shutter, .ghost-btn {
-      display:grid; place-items:center; border-radius:50%;
-      width:56px; height:56px; background:var(--ui); border:1px solid #ffffff22;
-    }
-    /* CHANGE 1: slightly smaller text so it fits cleanly */
-    .ghost-btn {
-      font-family:'Press Start 2P', monospace; font-size:8px; letter-spacing:0.5px; color:var(--accent);
-      line-height:1;
-    }
-    .shutter { width:84px; height:84px; background:#fff; border:4px solid #eee; box-shadow:0 0 0 4px #0006 inset; }
-    /* CHANGE 2 (style): dark red panic button (no emoji) */
-    .danger { background:#8b0000; color:#fff; border-color:#4a0000; }
-
-    .toast { position:fixed; left:50%; bottom:calc(var(--safe-area-inset-bottom) + 20px); transform:translateX(-50%); background: var(--ui-strong); padding:10px 14px; border-radius:999px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
-    .toast.show { opacity:1; }
-
-    canvas.capture { display:none; }
-
-    .chooser-backdrop {
-      position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:20;
-    }
-    .chooser-panel {
-      width:100%; max-width:560px; background:var(--panel); border-top-left-radius:18px; border-top-right-radius:18px;
-      box-shadow:0 -10px 30px rgba(0,0,0,.35); padding:14px 16px 18px; border:1px solid #222;
-    }
-    .chooser-title {
-      font-family:'Press Start 2P', monospace; font-size:10px; text-align:center; margin:0 0 12px; letter-spacing:1px; opacity:.9;
-    }
-    .ghost-grid {
-      display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;
-    }
-    .ghost-card {
-      border:1px solid #333; border-radius:12px; background:#0a0a0a; overflow:hidden;
-      display:flex; flex-direction:column; gap:8px; padding:10px; align-items:center; justify-content:center;
-    }
-    .ghost-card img { width:100%; height:140px; object-fit:contain; background:#000; }
-    .ghost-card button {
-      width:100%; background:#fff; color:#000; border:none; border-radius:10px; padding:10px 0;
-      font-family:'Press Start 2P', monospace; font-size:10px; letter-spacing:1px;
-    }
-    .chooser-actions { margin-top:12px; display:flex; justify-content:center; }
-    .chooser-close {
-      background:#222; color:#fff; border:1px solid #444; border-radius:12px; padding:10px 16px;
-      font-family:'Press Start 2P', monospace; font-size:10px; letter-spacing:1px;
-    }
-
-    /* NEW: ultra-thin horizontal opacity slider (no label) */
-    .opacity-wrap { display:flex; justify-content:center; }
-    .opacity-slider {
-      -webkit-appearance:none; appearance:none;
-      width:56%; max-width:360px; height:2px; background:#888; border-radius:2px; outline:none;
-    }
-    .opacity-slider::-webkit-slider-thumb {
-      -webkit-appearance:none; appearance:none;
-      width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid #bbb;
-      margin-top:-7px; /* center on 2px track */
-    }
-    .opacity-slider::-moz-range-thumb {
-      width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid #bbb;
-    }
-    .opacity-slider::-moz-range-track { height:2px; background:#888; border-radius:2px; }
+    :root{--safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);--ui:rgba(0,0,0,.55);--ui-strong:rgba(0,0,0,.8);--text:#fff}
+    html,body{height:100%;margin:0;background:#000;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;text-transform:uppercase}
+    .app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+    .topbar{display:flex;align-items:center;justify-content:center;padding:calc(var(--safe-top)+10px) 14px 8px;background:linear-gradient(#0008,#0000);z-index:10}
+    .pill{background:var(--ui);border-radius:999px;padding:10px 16px;font-size:10px;font-family:'Press Start 2P',monospace;letter-spacing:2px}
+    .viewport{position:relative;overflow:hidden;border-radius:28px;margin:0 12px;background:#000;box-shadow:0 0 0 2px #111 inset}
+    .viewport::before{content:"";display:block;padding-top:125%}
+    video,canvas.capture{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .start-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(transparent 60%, rgba(0,0,0,0.5));z-index:5}
+    .primary{background:#fff;color:#000;border-radius:14px;padding:14px 18px;border:none;font-family:'Press Start 2P',monospace;letter-spacing:1px;font-size:12px}
+    .overlay-wrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(1);touch-action:none;pointer-events:auto;display:none}
+    .overlay{width:60vw;max-width:520px;opacity:1;pointer-events:auto;user-select:none;-webkit-user-drag:none}
+    .bottombar{display:flex;flex-direction:column;gap:10px;padding:10px 16px calc(var(--safe-bot)+16px);background:linear-gradient(#0000,#0009)}
+    .controls{display:flex;align-items:center;justify-content:space-between}
+    .btn,.danger,.shutter,.ghost-btn{display:grid;place-items:center;border-radius:50%;width:56px;height:56px;background:var(--ui);border:1px solid #ffffff22}
+    .ghost-btn{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:.5px;color:#fff;line-height:1}
+    .shutter{width:84px;height:84px;background:#fff;border:4px solid #eee;box-shadow:0 0 0 4px #0006 inset}
+    .danger{background:#8b0000;color:#fff;border-color:#4a0000}
+    .toast{position:fixed;left:50%;bottom:calc(var(--safe-bot)+20px);transform:translateX(-50%);background:var(--ui-strong);padding:10px 14px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s}
+    .toast.show{opacity:1}
+    canvas.capture{display:none}
+    .chooser-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:20}
+    .chooser-panel{width:100%;max-width:560px;background:rgba(10,10,10,.92);border-top-left-radius:18px;border-top-right-radius:18px;padding:14px 16px 18px;border:1px solid #222}
+    .chooser-title{font-family:'Press Start 2P',monospace;font-size:10px;text-align:center;margin:0 0 12px;letter-spacing:1px;opacity:.9}
+    .ghost-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .ghost-card{border:1px solid #333;border-radius:12px;background:#0a0a0a;overflow:hidden;display:flex;flex-direction:column;gap:8px;padding:10px;align-items:center;justify-content:center}
+    .ghost-card img{width:100%;height:140px;object-fit:contain;background:#000}
+    .ghost-card button{width:100%;background:#fff;color:#000;border:none;border-radius:10px;padding:10px 0;font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:1px}
+    .chooser-actions{margin-top:12px;display:flex;justify-content:center}
+    .chooser-close{background:#222;color:#fff;border:1px solid #444;border-radius:12px;padding:10px 16px;font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:1px}
+    .opacity-wrap{display:flex;justify-content:center}
+    .opacity-slider{appearance:none;width:56%;max-width:360px;height:2px;background:#888;border-radius:2px;outline:none}
+    .opacity-slider::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:1px solid #bbb;margin-top:-7px}
   </style>
 </head>
 <body>
@@ -121,18 +51,22 @@
     <div class="topbar"><div class="pill">GHOST CAM</div></div>
 
     <div class="viewport">
-      <video id="video" playsinline="" muted=""></video>
+      <!-- ensure playsinline/autoplay/muted for mobile autoplay policies -->
+      <video id="video" playsinline autoplay muted></video>
+
       <div class="start-overlay" id="startOverlay">
         <button class="primary" id="startBtn">START CAMERA</button>
       </div>
+
       <div id="overlayWrap" class="overlay-wrap">
-        <img id="overlay" class="overlay" src="images/ghostwoman.png" alt="Ghost overlay" style="opacity: 1;">
+        <!-- initial overlay in images/ -->
+        <img id="overlay" class="overlay" src="images/ghostwoman.png" alt="Ghost overlay" style="opacity:1">
       </div>
+
       <canvas id="capture" class="capture"></canvas>
     </div>
 
     <div class="bottombar">
-      <!-- NEW: thin opacity slider above the controls -->
       <div class="opacity-wrap">
         <input id="opacitySlider" class="opacity-slider" type="range" min="0" max="100" value="100" step="1" aria-label="Overlay opacity">
       </div>
@@ -140,17 +74,17 @@
       <div class="controls">
         <button class="ghost-btn" id="ghostBtn" title="Choose Ghost">GHOST</button>
         <button class="shutter" id="shutterBtn" aria-label="Shutter"></button>
-        <!-- CHANGE 2 (markup): remove emoji, keep round button -->
-        <button class="danger" id="burnBtn" title="Burn (panic)" aria-label="Burn"></button>
+        <button class="danger" id="burnBtn" title="Burn" aria-label="Burn"></button>
       </div>
     </div>
   </div>
 
   <!-- Ghost chooser -->
-  <div class="chooser-backdrop" id="chooser">
+  <div class="chooser-backdrop" id="chooser" aria-hidden="true">
     <div class="chooser-panel" role="dialog" aria-labelledby="chooserTitle" aria-modal="true">
       <h3 class="chooser-title" id="chooserTitle">SELECT GHOST</h3>
       <div class="ghost-grid">
+        <!-- images display use full path; buttons hold filenames only (script will prepend images/) -->
         <div class="ghost-card"><img src="images/ghostwoman.png" alt="Ghost Woman"><button data-src="ghostwoman.png">USE</button></div>
         <div class="ghost-card"><img src="images/ghostgirl.png" alt="Ghost Girl"><button data-src="ghostgirl.png">USE</button></div>
         <div class="ghost-card"><img src="images/ghostman.png" alt="Ghost Man"><button data-src="ghostman.png">USE</button></div>
@@ -162,339 +96,256 @@
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
-
-
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
-(function() {
-
-  /* --------------------------------------------
-     ELEMENT REFERENCES
-  ---------------------------------------------*/
-  const video = document.getElementById("video");
-  const overlayWrap = document.getElementById("overlayWrap");
-  const overlay = document.getElementById("overlay");
-  const captureCanvas = document.getElementById("capture");
-  const startOverlay = document.getElementById("startOverlay");
-  const startBtn = document.getElementById("startBtn");
-  const shutterBtn = document.getElementById("shutterBtn");
-  const burnBtn = document.getElementById("burnBtn");
-  const ghostBtn = document.getElementById("ghostBtn");
-  const chooser = document.getElementById("chooser");
-  const chooserClose = document.getElementById("chooserClose");
-  const toast = document.getElementById("toast");
-  const opacitySlider = document.getElementById("opacitySlider");
-
-  let stream = null;
-  let currentBlend = "lighten";
-  let currentOpacity = 1;
-
-  /* --------------------------------------------
-     TOAST MESSAGE
-  ---------------------------------------------*/
-  function showToast(msg) {
-    toast.textContent = msg;
-    toast.classList.add("show");
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toast.classList.remove("show"), 1500);
-  }
-
-  /* --------------------------------------------
-     PRELOAD GHOST IMAGES (FIXED PATHS)
-  ---------------------------------------------*/
-  [
-    "images/ghostwoman.png",
-    "images/ghostgirl.png",
-    "images/ghostman.png",
-    "images/ghostscream.png",
-    "images/ghosthand.png",
-    "images/ghostshadow.png"
-  ].forEach(src => {
-    const im = new Image();
-    im.src = src;
-  });
-
-  /* --------------------------------------------
-     START CAMERA
-  ---------------------------------------------*/
-  async function startCamera() {
-    try {
-      let got = null;
-
-      const attempts = [
-        { video: { facingMode: "environment" }, audio: false },
-        { video: true, audio: false }
-      ];
-
-      for (const opt of attempts) {
-        try {
-          got = await navigator.mediaDevices.getUserMedia(opt);
-          break;
-        } catch (e) {}
-      }
-
-      if (!got) throw new Error("No camera available");
-
-      stream = got;
-      video.srcObject = got;
-      await video.play();
-
-      startOverlay.style.display = "none";
-      overlayWrap.style.display = "block";
-
-      showToast("CAMERA READY");
-
-    } catch (err) {
-      alert("Camera access denied or unavailable.\nMust be HTTPS.");
-    }
-  }
-
-  /* --------------------------------------------
-     OVERLAY TRANSFORM STATE
-  ---------------------------------------------*/
-  overlayWrap._dx = 0;
-  overlayWrap._dy = 0;
-  overlayWrap._scale = 1;
-  overlayWrap._rot = 0;
-  overlayWrap._prev = null;
-
-  function applyOverlayTransform() {
-    const deg = overlayWrap._rot * 180 / Math.PI;
-    overlayWrap.style.transform =
-      `translate(-50%, -50%) translate(${overlayWrap._dx}px, ${overlayWrap._dy}px) rotate(${deg}deg) scale(${overlayWrap._scale})`;
-  }
-
-  /* --------------------------------------------
-     DRAG / PINCH / ROTATE LOGIC
-  ---------------------------------------------*/
   (function() {
-    const active = new Map();
-    let baseline = null;
+    // Elements
+    const video = document.getElementById('video');
+    const overlayWrap = document.getElementById('overlayWrap');
+    const overlay = document.getElementById('overlay');
+    const captureCanvas = document.getElementById('capture');
+    const startOverlay = document.getElementById('startOverlay');
+    const startBtn = document.getElementById('startBtn');
+    const shutterBtn = document.getElementById('shutterBtn');
+    const burnBtn = document.getElementById('burnBtn');
+    const ghostBtn = document.getElementById('ghostBtn');
+    const chooser = document.getElementById('chooser');
+    const chooserClose = document.getElementById('chooserClose');
+    const toast = document.getElementById('toast');
+    const opacitySlider = document.getElementById('opacitySlider');
 
-    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-    const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
-    const ang = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+    // State
+    let stream = null;
+    let currentBlend = 'lighten';
+    let currentOpacity = 1;
 
-    overlayWrap.addEventListener("pointerdown", e => {
-      overlayWrap.setPointerCapture?.(e.pointerId);
-      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      overlayWrap._prev = { x: e.clientX, y: e.clientY };
-      e.preventDefault();
-    }, { passive: false });
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=>toast.classList.remove('show'),1500);
+    }
 
-    overlayWrap.addEventListener("pointermove", e => {
-      if (!active.has(e.pointerId)) return;
+    // Preload images from images/ folder
+    ['ghostwoman.png','ghostgirl.png','ghostman.png','ghostscream.png','ghosthand.png','ghostshadow.png']
+      .forEach(f => { const i=new Image(); i.src = 'images/' + f; });
 
-      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // Start camera (tries environment first)
+    async function startCamera(){
+      try {
+        const optsList = [{ video:{ facingMode:'environment' }, audio:false }, { video:true, audio:false }];
+        let got=null;
+        for(const o of optsList){
+          try{ got = await navigator.mediaDevices.getUserMedia(o); break;}catch(e){}
+        }
+        if(!got) throw new Error('No camera');
+        stream = got;
+        video.srcObject = got;
+        // ensure autoplay behavior works on mobile
+        video.playsInline = true;
+        video.muted = true;
+        await video.play();
+        startOverlay.style.display = 'none';
+        overlayWrap.style.display = 'block';
+        showToast('CAMERA READY');
+      } catch (e) {
+        alert('Camera access denied or unavailable. Use HTTPS.');
+        console.error(e);
+      }
+    }
 
-      if (active.size === 1) {
-        const p = [...active.values()][0];
-        const prev = overlayWrap._prev;
-        overlayWrap._dx += (p.x - prev.x);
-        overlayWrap._dy += (p.y - prev.y);
-        overlayWrap._prev = p;
+    // overlay transform state
+    overlayWrap._dx = 0;
+    overlayWrap._dy = 0;
+    overlayWrap._scale = 1;
+    overlayWrap._rot = 0;
+    overlayWrap._prev = null;
 
-        applyOverlayTransform();
+    function applyOverlayTransform(){
+      const deg = overlayWrap._rot * 180 / Math.PI;
+      overlayWrap.style.transform = `translate(-50%,-50%) translate(${overlayWrap._dx}px, ${overlayWrap._dy}px) rotate(${deg}deg) scale(${overlayWrap._scale})`;
+    }
+
+    // pointer-based drag / pinch / rotate
+    (function(){
+      const active = new Map();
+      let baseline = null;
+      const mid = (a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+      const dist = (a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+      const ang = (a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
+
+      overlayWrap.addEventListener('pointerdown', e=>{
+        overlayWrap.setPointerCapture?.(e.pointerId);
+        active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        overlayWrap._prev = {x:e.clientX,y:e.clientY};
+        e.preventDefault();
+      }, {passive:false});
+
+      overlayWrap.addEventListener('pointermove', e=>{
+        if(!active.has(e.pointerId)) return;
+        active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        if(active.size === 1){
+          const p = [...active.values()][0];
+          const prev = overlayWrap._prev;
+          overlayWrap._dx += (p.x-prev.x);
+          overlayWrap._dy += (p.y-prev.y);
+          overlayWrap._prev = p;
+          applyOverlayTransform();
+        } else if(active.size === 2){
+          const [p1,p2] = [...active.values()];
+          if(!baseline){
+            baseline = { dist0:dist(p1,p2), ang0:ang(p1,p2), mid0:mid(p1,p2), dx0:overlayWrap._dx, dy0:overlayWrap._dy, scale0:overlayWrap._scale, rot0:overlayWrap._rot };
+            return;
+          }
+          const m = mid(p1,p2), d = dist(p1,p2), a = ang(p1,p2);
+          const factor = (baseline.dist0 === 0) ? 1 : (d / baseline.dist0);
+          overlayWrap._scale = Math.max(0.3, Math.min(3, baseline.scale0 * factor));
+          overlayWrap._dx = baseline.dx0 + (m.x - baseline.mid0.x);
+          overlayWrap._dy = baseline.dy0 + (m.y - baseline.mid0.y);
+          overlayWrap._rot = baseline.rot0 + (a - baseline.ang0);
+          applyOverlayTransform();
+        }
+        e.preventDefault();
+      }, {passive:false});
+
+      overlayWrap.addEventListener('pointerup', e=>{
+        active.delete(e.pointerId);
+        if(active.size < 2) baseline = null;
+        overlayWrap.releasePointerCapture?.(e.pointerId);
+      });
+    })();
+
+    // opacity slider
+    opacitySlider.addEventListener('input', ()=>{
+      currentOpacity = Math.max(0, Math.min(1, opacitySlider.value/100));
+      overlay.style.opacity = currentOpacity;
+    });
+
+    // Capture frame + overlay + share/download
+    async function captureFrame(){
+      if(!video.videoWidth){ showToast('CAMERA NOT READY'); return; }
+
+      const w = video.videoWidth, h = video.videoHeight;
+      captureCanvas.width = w; captureCanvas.height = h;
+      const ctx = captureCanvas.getContext('2d');
+
+      // draw camera
+      ctx.drawImage(video, 0, 0, w, h);
+
+      // ensure overlay loaded
+      if(!overlay.complete){
+        await new Promise(r=>overlay.onload=r);
       }
 
-      else if (active.size === 2) {
-        const [p1, p2] = [...active.values()];
+      // convert on-screen overlay transform -> canvas coords
+      const rect = video.getBoundingClientRect();
+      const scaleX = w / rect.width;
+      const scaleY = h / rect.height;
 
-        if (!baseline) {
-          baseline = {
-            dist0: dist(p1, p2),
-            ang0: ang(p1, p2),
-            mid0: mid(p1, p2),
-            dx0: overlayWrap._dx,
-            dy0: overlayWrap._dy,
-            scale0: overlayWrap._scale,
-            rot0: overlayWrap._rot
-          };
-          return;
+      const cx_view = rect.left + rect.width/2 + overlayWrap._dx;
+      const cy_view = rect.top + rect.height/2 + overlayWrap._dy;
+
+      const baseW = overlay.clientWidth;
+      const baseH = overlay.clientHeight;
+      const drawW = baseW * overlayWrap._scale * scaleX;
+      const drawH = baseH * overlayWrap._scale * scaleY;
+
+      const cx = (cx_view - rect.left) * scaleX;
+      const cy = (cy_view - rect.top) * scaleY;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(overlayWrap._rot);
+      ctx.globalAlpha = currentOpacity;
+      ctx.globalCompositeOperation = currentBlend;
+      ctx.drawImage(overlay, -drawW/2, -drawH/2, drawW, drawH);
+      ctx.restore();
+
+      // canvas -> blob
+      captureCanvas.toBlob(async function(blob){
+        if(!blob){ showToast('EXPORT FAILED'); return; }
+
+        const fileName = `ghostcam-${Date.now()}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+        // Try Web Share first
+        try {
+          if(navigator.canShare && navigator.canShare({ files:[file] })){
+            await navigator.share({ files:[file], title:'Ghost Cam' });
+            showToast('SHARED');
+            return;
+          }
+        } catch (e) {
+          // fallthrough to download fallback
+          console.warn('Share failed', e);
         }
 
-        const m = mid(p1, p2);
-        const d = dist(p1, p2);
-        const a = ang(p1, p2);
+        // Android-friendly forced download:
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
 
-        overlayWrap._scale = Math.max(0.3, Math.min(3, baseline.scale0 * (d / baseline.dist0)));
-        overlayWrap._dx = baseline.dx0 + (m.x - baseline.mid0.x);
-        overlayWrap._dy = baseline.dy0 + (m.y - baseline.mid0.y);
-        overlayWrap._rot = baseline.rot0 + (a - baseline.ang0);
+        // small delay / next tick to make Android treat as user gesture
+        setTimeout(()=>{
+          try { a.click(); } catch(err){ console.warn('click failed', err); }
+          // cleanup after short delay
+          setTimeout(()=>{
+            URL.revokeObjectURL(url);
+            a.remove();
+          }, 600);
+        }, 50);
 
-        applyOverlayTransform();
-      }
+        showToast('DOWNLOADED');
+      }, 'image/jpeg', 0.92);
+    }
 
-      e.preventDefault();
-    }, { passive: false });
+    // Burn (panic)
+    function burn(){
+      try{ stream?.getTracks().forEach(t=>t.stop()); }catch(e){}
+      document.body.innerHTML = '';
+      location.replace('about:blank');
+    }
 
-    overlayWrap.addEventListener("pointerup", e => {
-      active.delete(e.pointerId);
-      if (active.size < 2) baseline = null;
-      overlayWrap.releasePointerCapture?.(e.pointerId);
+    // Chooser open/close and select handling
+    function openChooser(){ chooser.style.display = 'flex'; chooser.setAttribute('aria-hidden','false'); }
+    function closeChooser(){ chooser.style.display = 'none'; chooser.setAttribute('aria-hidden','true'); }
+
+    ghostBtn.addEventListener('click', openChooser);
+    chooserClose.addEventListener('click', closeChooser);
+    chooser.addEventListener('click', e => { if(e.target === chooser) closeChooser(); });
+
+    // Buttons inside chooser have data-src="ghostname.png" (filename only)
+    chooser.querySelectorAll('[data-src]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const filename = btn.getAttribute('data-src') || '';
+        const src = 'images/' + filename;
+        overlay.src = src;
+        currentBlend = filename.includes('ghostshadow') ? 'multiply' : 'lighten';
+        closeChooser();
+        showToast('GHOST SET');
+      });
     });
+
+    // Attach UI handlers
+    startBtn.addEventListener('click', startCamera);
+    shutterBtn.addEventListener('click', ()=>{ 
+      // ensure click is a direct gesture — call captureFrame from click handler
+      captureFrame();
+    });
+    burnBtn.addEventListener('click', burn);
+
+    // Accessibility: keyboard support for chooser buttons
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape') closeChooser();
+    });
+
   })();
-
-  /* --------------------------------------------
-     OPACITY SLIDER
-  ---------------------------------------------*/
-  opacitySlider.addEventListener("input", () => {
-    currentOpacity = Math.max(0, Math.min(1, opacitySlider.value / 100));
-    overlay.style.opacity = currentOpacity;
-  });
-
-  /* --------------------------------------------
-     CAPTURE FRAME (ANDROID + iPHONE COMPATIBLE)
-  ---------------------------------------------*/
-  async function captureFrame() {
-    if (!video.videoWidth) {
-      showToast("CAMERA NOT READY");
-      return;
-    }
-
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-
-    captureCanvas.width = w;
-    captureCanvas.height = h;
-    const ctx = captureCanvas.getContext("2d");
-
-    ctx.drawImage(video, 0, 0, w, h);
-
-    if (!overlay.complete) {
-      await new Promise(r => overlay.onload = r);
-    }
-
-    const rect = video.getBoundingClientRect();
-    const scaleX = w / rect.width;
-    const scaleY = h / rect.height;
-
-    const cx_view = rect.left + rect.width / 2 + overlayWrap._dx;
-    const cy_view = rect.top + rect.height / 2 + overlayWrap._dy;
-
-    const drawW = overlay.clientWidth * overlayWrap._scale * scaleX;
-    const drawH = overlay.clientHeight * overlayWrap._scale * scaleY;
-
-    const cx = (cx_view - rect.left) * scaleX;
-    const cy = (cy_view - rect.top) * scaleY;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(overlayWrap._rot);
-    ctx.globalAlpha = currentOpacity;
-    ctx.globalCompositeOperation = currentBlend;
-    ctx.drawImage(overlay, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
-
-    const blob = await new Promise(r => captureCanvas.toBlob(r, "image/jpeg", 0.92));
-    const file = new File([blob], `ghostcam-${Date.now()}.jpg`, { type: "image/jpeg" });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Ghost Cam" });
-        showToast("SHARED");
-        return;
-      } catch (e) {}
-    }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-
-    showToast("DOWNLOADED");
-  }
-
-  /* --------------------------------------------
-     "BURN" – Close Page
-  ---------------------------------------------*/
-  function burn() {
-    try { stream?.getTracks().forEach(t => t.stop()); } catch {}
-    document.body.innerHTML = "";
-    location.replace("about:blank");
-  }
-
-  /* --------------------------------------------
-     GHOST CHOOSER (FIXED PATHS)
-  ---------------------------------------------*/
-  function openChooser() { chooser.style.display = "flex"; }
-  function closeChooser() { chooser.style.display = "none"; }
-
-  ghostBtn.addEventListener("click", openChooser);
-  chooserClose.addEventListener("click", closeChooser);
-  chooser.addEventListener("click", e => {
-    if (e.target === chooser) closeChooser();
-  });
-
-  chooser.querySelectorAll("[data-src]").forEach(el => {
-    el.addEventListener("click", () => {
-      // prepend images/ to the filename
-      const filename = el.getAttribute("data-src");
-      const src = "images/" + filename;
-
-      overlay.src = src;
-      currentBlend = filename.includes("ghostshadow") ? "multiply" : "lighten";
-
-      closeChooser();
-      showToast("GHOST SET");
-    });
-  });
-
-  /* --------------------------------------------
-     BUTTON EVENTS
-  ---------------------------------------------*/
-  startBtn.addEventListener("click", startCamera);
-  shutterBtn.addEventListener("click", captureFrame);
-  burnBtn.addEventListener("click", burn);
-
-})();
-</script>
-
-
-
-  
-
-<div id="give-freely-root-ejkiikneibegknkgimmihdpcbcedgmpo" class="give-freely-root" data-extension-id="ejkiikneibegknkgimmihdpcbcedgmpo" data-extension-name="Volume Booster" style="display: block;"><template shadowrootmode="open"><style>
-  :host {
-    all: initial;
-  }
-
-  .gf-scroll-remove::-webkit-scrollbar {
-    border-radius-bottom-right: 15px;
-  }
-
-  button {
-    cursor: pointer;
-    transition: transform 0.1s ease;
-  }
-
-  button:active {
-    transform: scale(0.98);
-  }
-
-  .give-freely-close-button:hover {
-    opacity: 0.7;
-  }
-
-  input[type="radio"] {
-    margin-right: 8px;
-  }
-
-  hr {
-    border: none;
-    border-top: 1px solid #e5e5e5;
-    margin: 1em 0;
-  }
-
-  @media (max-width: 600px), (max-height: 480px) {
-    #give-freely-checkout-popup {
-      display: none !important;
-    }
-  }
-</style><div><div class="gf-app"></div></div></template></div></body></html>
+  </script>
+</body>
+</html>
